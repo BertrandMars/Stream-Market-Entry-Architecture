@@ -338,9 +338,9 @@ SEGMENTS: ${segLabels.join(', ')}
 PRIORITAIRE: ${priLabel}
 ${note ? 'NOTE TERRAIN: ' + note : ''}
 
-G\u00e9n\u00e8re une Market Entry Architecture. Sois pr\u00e9cis, op\u00e9rationnel, ancr\u00e9 dans la r\u00e9alit\u00e9 du terrain m\u00e9dico-social fran\u00e7ais. Pas de g\u00e9n\u00e9ralit\u00e9s.
+G\u00e9n\u00e8re une Market Entry Architecture. Sois pr\u00e9cis et concis. Maximum 2 d\u00e9cisionnaires, 3 messages, 2 objections, 3 canaux par segment. Ancr\u00e9 dans la r\u00e9alit\u00e9 du terrain m\u00e9dico-social fran\u00e7ais.
 
-R\u00e9ponds UNIQUEMENT avec un JSON valide, sans texte avant ou apr\u00e8s:
+R\u00e9ponds UNIQUEMENT avec un JSON valide et complet, sans texte avant ou apr\u00e8s:
 {
   "synthese": "...",
   "sequenceRecommandee": ["Segment 1", "Segment 2"],
@@ -379,7 +379,7 @@ Segments \u00e0 g\u00e9n\u00e9rer: ${segLabels.join(', ')}`;
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
+        max_tokens: 8000,
         messages: [{role:'user', content: prompt}]
       })
     });
