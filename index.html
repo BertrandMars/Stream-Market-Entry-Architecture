@@ -371,16 +371,43 @@ Segments \u00e0 g\u00e9n\u00e9rer: ${segLabels.join(', ')}`;
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body: JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,messages:[{role:'user',content:prompt}]})
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{role:'user', content: prompt}]
+      })
     });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error('API ' + res.status + ': ' + (errData.error ? errData.error.message : res.statusText));
+    }
+
     const data = await res.json();
+
     if (data.error) throw new Error(data.error.message);
-    const raw = data.content[0].text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-    genData = JSON.parse(raw);
+    if (!data.content || !data.content[0]) throw new Error('R\u00e9ponse API vide');
+
+    const rawText = data.content[0].text;
+
+    // Extract JSON — find first { and last }
+    const start = rawText.indexOf('{');
+    const end = rawText.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('JSON introuvable dans la r\u00e9ponse');
+
+    const jsonStr = rawText.slice(start, end + 1);
+    genData = JSON.parse(jsonStr);
+
     clearInterval(iv);
     renderResult(genData);
     show('result');
+
   } catch(e) {
     clearInterval(iv);
     show('form');
