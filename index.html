@@ -299,6 +299,48 @@ function show(name) {
 
 function resetForm() { show('form'); genData = null; }
 
+
+function repairAndParseJSON(text) {
+  // Attempt 1: direct parse after extracting JSON block
+  const s = text.indexOf('{');
+  const e = text.lastIndexOf('}');
+  if (s === -1) return null;
+  const block = e !== -1 ? text.slice(s, e + 1) : text.slice(s);
+
+  try { return JSON.parse(block); } catch(_) {}
+
+  // Attempt 2: truncated JSON — count brackets and close them
+  try {
+    let fixed = block;
+    // Remove trailing incomplete key-value (cut at last complete , or {)
+    const lastComma = fixed.lastIndexOf(',');
+    const lastBrace = fixed.lastIndexOf('{');
+    const cutAt = Math.max(lastComma, lastBrace);
+    if (cutAt > fixed.length * 0.8) fixed = fixed.slice(0, cutAt);
+
+    const ob = (fixed.match(/{/g)||[]).length - (fixed.match(/}/g)||[]).length;
+    const oa = (fixed.match(/\[/g)||[]).length - (fixed.match(/\]/g)||[]).length;
+    fixed += ']'.repeat(Math.max(0, oa)) + '}'.repeat(Math.max(0, ob));
+    return JSON.parse(fixed);
+  } catch(_) {}
+
+  // Attempt 3: extract only what we can — build minimal object
+  try {
+    const synth = text.match(/"synthese"\s*:\s*"([^"]+)"/);
+    const segs = [];
+    const segMatches = [...text.matchAll(/"nom"\s*:\s*"([^"]+)"/g)];
+    segMatches.forEach(m => segs.push({nom: m[1], potentiel: 4, accessibilite: 3,
+      angleEntree: 'Voir note terrain', messagesClés: [], objections: [], canaux: []}));
+    return {
+      synthese: synth ? synth[1] : 'Architecture g\u00e9n\u00e9r\u00e9e partiellement.',
+      sequenceRecommandee: [], segments: segs,
+      planAction90j: {j0_30:[], j30_60:[], j60_90:[]},
+      alertes: ['R\u00e9ponse tronqu\u00e9e — r\u00e9duire le nombre de segments'],
+      conclusionStrategique: ''
+    };
+  } catch(_) { return null; }
+}
+
 async function generate() {
   const apiKey = localStorage.getItem('straem_key') || document.getElementById('akey').value.trim();
   const clientName = document.getElementById('f_client').value.trim();
@@ -378,7 +420,7 @@ Segments \u00e0 g\u00e9n\u00e9rer: ${segLabels.join(', ')}`;
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-sonnet-4-6',
         max_tokens: 8000,
         messages: [{role:'user', content: prompt}]
       })
@@ -395,14 +437,8 @@ Segments \u00e0 g\u00e9n\u00e9rer: ${segLabels.join(', ')}`;
     if (!data.content || !data.content[0]) throw new Error('R\u00e9ponse API vide');
 
     const rawText = data.content[0].text;
-
-    // Extract JSON — find first { and last }
-    const start = rawText.indexOf('{');
-    const end = rawText.lastIndexOf('}');
-    if (start === -1 || end === -1) throw new Error('JSON introuvable dans la r\u00e9ponse');
-
-    const jsonStr = rawText.slice(start, end + 1);
-    genData = JSON.parse(jsonStr);
+    genData = repairAndParseJSON(rawText);
+    if (!genData) throw new Error('Impossible de parser la r\u00e9ponse JSON. R\u00e9essayez avec moins de segments.');
 
     clearInterval(iv);
     renderResult(genData);
